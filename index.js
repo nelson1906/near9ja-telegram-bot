@@ -1,41 +1,36 @@
 import TelegramBot from "node-telegram-bot-api";
+import dotenv from "dotenv";
 
-const token = "YOUR_BOT_TOKEN_HERE";
-const groupLink = "https://t.me/near9ja";
+dotenv.config();
+
+const token = process.env.BOT_TOKEN;
+const groupLink = process.env.GROUP_LINK;
+
 const bot = new TelegramBot(token, { polling: true });
 
-// In-memory database for now
-const users = new Map();
+// Store user referral codes in memory (we’ll later move this to a DB)
+const userReferrals = new Map();
 
 bot.onText(/\/start(.*)/, (msg, match) => {
   const chatId = msg.chat.id;
-  const refCode = match[1]?.trim();
+  const referralId = match[1]?.trim();
 
-  if (!users.has(chatId)) {
-    users.set(chatId, { username: msg.from.username || "anonymous", invites: 0 });
+  if (referralId) {
+    bot.sendMessage(chatId, `You joined using invite code: ${referralId}`);
+  } else {
+    bot.sendMessage(chatId, "Welcome to NEAR 9ja! Use /getlink to get your referral link.");
   }
-
-  // Handle referral
-  if (refCode && refCode !== String(chatId) && users.has(Number(refCode))) {
-    const refUser = users.get(Number(refCode));
-    refUser.invites += 1;
-    bot.sendMessage(Number(refCode), `🎉 Someone joined using your invite link! You now have ${refUser.invites} invites.`);
-  }
-
-  bot.sendMessage(
-    chatId,
-    `👋 Welcome to NEAR 9ja!\n\nJoin our community: ${groupLink}\n\nUse /getlink to get your personal invite link.`
-  );
 });
 
 bot.onText(/\/getlink/, (msg) => {
-  const chatId = msg.chat.id;
-  if (!users.has(chatId)) {
-    users.set(chatId, { username: msg.from.username || "anonymous", invites: 0 });
-  }
+  const userId = msg.from.id;
+  const inviteLink = `https://t.me/${process.env.BOT_USERNAME}?start=${userId}`;
 
-  const inviteLink = `https://t.me/${bot.username}?start=${chatId}`;
-  bot.sendMessage(chatId, `✨ Your personal invite link:\n${inviteLink}`);
+  userReferrals.set(userId, 0); // initialize user
+  bot.sendMessage(
+    msg.chat.id,
+    `Your unique invite link:\n${inviteLink}\n\nShare it with your friends to invite them to the group:\n${groupLink}`
+  );
 });
 
-console.log("🚀 Bot is running...");
+console.log("🤖 Bot is running...");
